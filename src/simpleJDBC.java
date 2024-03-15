@@ -62,8 +62,8 @@ class simpleJDBC {
                     // Implement Add a new Lesson Package
                     break;
                 case 5:
-                    // Implement Add Equipment to Lesson Package
-                    break;
+                    AddEquipmentToLessonPackage.promptAddEquipmentToLessonPackage(con);
+		            break;
                 case 6:
                     System.out.println("Exiting...");
                     scanner.close();
