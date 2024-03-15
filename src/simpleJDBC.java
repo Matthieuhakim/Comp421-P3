@@ -63,7 +63,7 @@ class simpleJDBC {
                     break;
                 case 5:
                     AddEquipmentToLessonPackage.promptAddEquipmentToLessonPackage(con);
-		            break;
+		    break;
                 case 6:
                     System.out.println("Exiting...");
                     scanner.close();
