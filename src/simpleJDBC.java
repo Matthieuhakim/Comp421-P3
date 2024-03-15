@@ -55,7 +55,6 @@ class simpleJDBC {
                     // Implement Register a new Skier
                     break;
                 case 3:
-                    // Implement Book a Reservation
                     book_reservation.execute(con);
                     break;
                 case 4:
