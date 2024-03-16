@@ -58,7 +58,7 @@ class simpleJDBC {
                     book_reservation.execute(con);
                     break;
                 case 4:
-                    // Implement Add a new Lesson Package
+                    add_LessonPackage.addNewLessonPackage(con);
                     break;
                 case 5:
                     AddEquipmentToLessonPackage.promptAddEquipmentToLessonPackage(con);
