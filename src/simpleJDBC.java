@@ -52,7 +52,7 @@ class simpleJDBC {
                     lookup_instructors.lookupInstructorsBySkiStation(con);
                     break;
                 case 2:
-                    // Implement Register a new Skier
+                    AddSkier.execute(con);
                     break;
                 case 3:
                     book_reservation.execute(con);
