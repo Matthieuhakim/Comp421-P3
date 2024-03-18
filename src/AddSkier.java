@@ -40,7 +40,8 @@ public class AddSkier {
       java.util.Date parsed = format.parse(skierDOBString);
       skierDOB = new Date(parsed.getTime());
     } catch (ParseException e) {
-      throw new RuntimeException(e);
+      System.out.println("Invalid date format. Please enter date in the format YYYY-MM-DD");
+      return;
     }
 
     System.out.println("Enter your experience level: (1 to 10) ");
@@ -61,7 +62,8 @@ public class AddSkier {
       java.util.Date parsed = format.parse(skierCreditCardExpiryString);
       skierCreditCardExpiryDate = new Date(parsed.getTime());
     } catch (ParseException e) {
-      throw new RuntimeException(e);
+      System.out.println("Invalid date format. Please enter date in the format YYYY-MM-DD");
+      return;
     }
 
 //    scanner.close();

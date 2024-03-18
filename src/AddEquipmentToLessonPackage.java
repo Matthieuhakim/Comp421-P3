@@ -37,7 +37,7 @@ public class AddEquipmentToLessonPackage {
             }
         }
     }
-	    public static void promptAddEquipmentToLessonPackage(Connection con) throws SQLException {
+    public static void promptAddEquipmentToLessonPackage(Connection con) throws SQLException {
         Scanner scanner = new Scanner(System.in);
 
         // Prompt to see available lesson packages
