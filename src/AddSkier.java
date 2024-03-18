@@ -1,23 +1,10 @@
 import java.sql.*;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
 import java.sql.Date;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.*;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.sql.*;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 
 public class AddSkier extends JFrame {
 

@@ -1,6 +1,5 @@
 import javax.swing.*;
 import java.sql.*;
-import java.util.*;
 
 public class add_LessonPackage extends simpleJDBC{
 
