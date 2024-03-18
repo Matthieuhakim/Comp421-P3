@@ -3,155 +3,161 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.sql.Date;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
-public class AddSkier {
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
-  private static int sqlCode = 0;      // Variable to hold SQLCODE
-  private static String sqlState = "00000";  // Variable to hold SQLSTATE
+public class AddSkier extends JFrame {
 
-  private static String skierTable = "Skier";
-  private static String userTable = "User";
+  private static final String skierTable = "Skier";
+  private static final String userTable = "User";
+  private final Connection con;
+  private final JTextField emailField;
+    private final JTextField nameField;
+    private final JTextField passwordField;
+    private final JTextField dobField;
+    private final JTextField experienceField;
+    private final JTextField addressField;
+    private final JTextField creditCardNumberField;
+    private final JTextField creditCardExpiryField;
+  private final JButton submitButton;
 
-  public static void execute(Connection con) throws SQLException {
+  public AddSkier(Connection con) {
+    this.con = con;
+    setTitle("Register Skier");
+    setSize(300, 400);
+    setLayout(new GridLayout(9, 2));
 
-    //Ask for skier email
-    Scanner scanner = new Scanner(System.in);
-    System.out.println("Enter your email: ");
-    String skier_email = scanner.nextLine();
+    add(new JLabel("Email:"));
+    emailField = new JTextField();
+    add(emailField);
 
-    //Check if skier exists
-    if (checkSkierExists(con, skier_email)) {
-      System.out.println(
-          "User with email " + skier_email + " already exists. Please use a different email.");
-      return;
-    }
+    add(new JLabel("Full Name:"));
+    nameField = new JTextField();
+    add(nameField);
 
-    System.out.println("Enter your full name: ");
-    String skierName = scanner.nextLine();
+    add(new JLabel("Password:"));
+    passwordField = new JTextField();
+    add(passwordField);
 
-    System.out.println("Enter your password: ");
-    String skierPassword = scanner.nextLine();
+    add(new JLabel("Date of Birth (YYYY-MM-DD):"));
+    dobField = new JTextField();
+    add(dobField);
 
-    System.out.println("Enter your date of birth: (YYYY-MM-DD) ");
-    String skierDOBString = scanner.nextLine();
-    Date skierDOB;
-    try {
-      SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-      java.util.Date parsed = format.parse(skierDOBString);
-      skierDOB = new Date(parsed.getTime());
-    } catch (ParseException e) {
-      System.out.println("Invalid date format. Please enter date in the format YYYY-MM-DD");
-      return;
-    }
+    add(new JLabel("Experience Level (1 to 10):"));
+    experienceField = new JTextField();
+    add(experienceField);
 
-    System.out.println("Enter your experience level: (1 to 10) ");
-    int skierExperience = scanner.nextInt();
-    scanner.nextLine();
+    add(new JLabel("Address:"));
+    addressField = new JTextField();
+    add(addressField);
 
-    System.out.println("Enter your address: ");
-    String skierAddress = scanner.nextLine();
+    add(new JLabel("Credit Card Number:"));
+    creditCardNumberField = new JTextField();
+    add(creditCardNumberField);
 
-    System.out.println("Enter your credit card number for payments: ");
-    String skierCreditCardNumber = scanner.nextLine();
+    add(new JLabel("Credit Card Expiry (YYYY-MM):"));
+    creditCardExpiryField = new JTextField();
+    add(creditCardExpiryField);
 
-    System.out.println("Enter your credit card expiry date: (YYYY-MM)");
-    String skierCreditCardExpiryString = scanner.nextLine() + "-01";
-    Date skierCreditCardExpiryDate;
-    try {
-      SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-      java.util.Date parsed = format.parse(skierCreditCardExpiryString);
-      skierCreditCardExpiryDate = new Date(parsed.getTime());
-    } catch (ParseException e) {
-      System.out.println("Invalid date format. Please enter date in the format YYYY-MM-DD");
-      return;
-    }
-
-//    scanner.close();
-
-    // Insert User
-    insertUser(con, skier_email, skierName, skierPassword, skierDOB);
-    //Insert Skier
-    insertSkier(con, skier_email, skierExperience, skierAddress, skierCreditCardNumber, skierCreditCardExpiryDate);
-
-  }
-
-  private static boolean checkSkierExists(Connection con, String skier_email) throws SQLException{
-    Statement statement = con.createStatement();
-    try {
-      String querySQL = "SELECT * from " + userTable + " WHERE email = '" + skier_email + "'";
-      java.sql.ResultSet rs = statement.executeQuery(querySQL);
-      if (!rs.next()) {
-        return false;
+    submitButton = new JButton("Submit");
+    add(submitButton);
+    submitButton.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        submitSkier();
       }
-      rs.close();
-    } catch (SQLException e) {
-      sqlCode = e.getErrorCode(); // Get SQLCODE
-      sqlState = e.getSQLState(); // Get SQLSTATE
+    });
 
-      // Your code to handle errors comes here;
-      // something more meaningful than a print would be good
-      System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-      System.out.println(e);
-    }
-    statement.close();
-    return true;
+    setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    setVisible(true);
   }
 
-  private static void insertSkier(Connection con, String skier_email, int skierExperience, String skierAddress, String skierCreditCardNumber, Date skierCreditCardExpiry) throws SQLException{
+  private void submitSkier() {
+    String skierEmail = emailField.getText();
+    String skierName = nameField.getText();
+    String skierPassword = passwordField.getText();
+    String dobString = dobField.getText();
+    String experienceString = experienceField.getText();
+    String skierAddress = addressField.getText();
+    String creditCardNumber = creditCardNumberField.getText();
+    String creditCardExpiry = creditCardExpiryField.getText() + "-01";
 
-    System.out.println("Creating skier profile...");
+    if (!checkSkierExists(skierEmail)) {
+      try {
+        java.sql.Date skierDOB = java.sql.Date.valueOf(dobString);
+        java.sql.Date skierCreditCardExpiry = java.sql.Date.valueOf(creditCardExpiry);
+        int skierExperience = Integer.parseInt(experienceString);
 
-    //Insert reservation with only these attributes
+        // Insert User and Skier
+        insertUser(skierEmail, skierName, skierPassword, skierDOB);
+        insertSkier(skierEmail, skierExperience, skierAddress, creditCardNumber, skierCreditCardExpiry);
+        JOptionPane.showMessageDialog(this, "Skier profile created successfully!");
+      } catch (NumberFormatException e) {
+        JOptionPane.showMessageDialog(this, "Invalid experience level.", "Error", JOptionPane.ERROR_MESSAGE);
+      }
+    } else {
+      JOptionPane.showMessageDialog(this, "User with email " + skierEmail + " already exists. Please use a different email.", "Error", JOptionPane.ERROR_MESSAGE);
+    }
+  }
+
+  private boolean checkSkierExists(String skier_email) {
+    try (Statement statement = con.createStatement()) {
+      String querySQL = "SELECT * FROM " + userTable + " WHERE email = '" + skier_email + "'";
+      ResultSet rs = statement.executeQuery(querySQL);
+      if (rs.next()) {
+        rs.close();
+        return true;
+      }
+    } catch (SQLException e) {
+      showErrorDialog("Error checking if skier exists: " + e.getMessage());
+    }
+    return false;
+  }
+
+  private void insertSkier(String skier_email, int skierExperience, String skierAddress, String skierCreditCardNumber, Date skierCreditCardExpiry) {
     String insertSQL = "INSERT INTO " + skierTable + " (email, experience_level, address, credit_card_num, credit_card_exp) VALUES (?, ?, ?, ?, ?)";
-    PreparedStatement preparedStatement = con.prepareStatement(insertSQL);
-    preparedStatement.setString(1, skier_email);
-    preparedStatement.setInt(2, skierExperience);
-    preparedStatement.setString(3, skierAddress);
-    preparedStatement.setString(4, skierCreditCardNumber);
-    preparedStatement.setDate(5, skierCreditCardExpiry);
-
-    try {
+    try (PreparedStatement preparedStatement = con.prepareStatement(insertSQL)) {
+      preparedStatement.setString(1, skier_email);
+      preparedStatement.setInt(2, skierExperience);
+      preparedStatement.setString(3, skierAddress);
+      preparedStatement.setString(4, skierCreditCardNumber);
+      preparedStatement.setDate(5, new java.sql.Date(skierCreditCardExpiry.getTime()));
       preparedStatement.executeUpdate();
-      System.out.println("Skier profile created successfully!");
-      System.out.println("Skier email: " + skier_email);
+      //JOptionPane.showMessageDialog(this, "Skier profile created successfully!");
     } catch (SQLException e) {
-      sqlCode = e.getErrorCode(); // Get SQLCODE
-      sqlState = e.getSQLState(); // Get SQLSTATE
-
-      // Your code to handle errors comes here;
-      // something more meaningful than a print would be good
-      System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-      System.out.println(e);
+      showErrorDialog("Error creating skier profile: " + e.getMessage());
     }
-
-    preparedStatement.close();
   }
 
-  private static void insertUser(Connection con, String skier_email, String name, String password, Date dateOfBirth) throws SQLException{
-
-    System.out.println("Creating user profile...");
-
-    //Insert reservation with only these attributes
+  private void insertUser(String skier_email, String name, String password, Date dateOfBirth) {
     String insertSQL = "INSERT INTO " + userTable + " (email, name, password, birth_date) VALUES (?, ?, ?, ?)";
-    PreparedStatement preparedStatement = con.prepareStatement(insertSQL);
-    preparedStatement.setString(1, skier_email);
-    preparedStatement.setString(2, name);
-    preparedStatement.setString(3, password);
-    preparedStatement.setDate(4, dateOfBirth);
-
-    try {
+    try (PreparedStatement preparedStatement = con.prepareStatement(insertSQL)) {
+      preparedStatement.setString(1, skier_email);
+      preparedStatement.setString(2, name);
+      preparedStatement.setString(3, password);
+      preparedStatement.setDate(4, new java.sql.Date(dateOfBirth.getTime()));
       preparedStatement.executeUpdate();
     } catch (SQLException e) {
-      sqlCode = e.getErrorCode(); // Get SQLCODE
-      sqlState = e.getSQLState(); // Get SQLSTATE
-
-      // Your code to handle errors comes here;
-      // something more meaningful than a print would be good
-      System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-      System.out.println(e);
+      showErrorDialog("Error creating user profile: " + e.getMessage());
     }
-
-    preparedStatement.close();
   }
 
+  private void showErrorDialog(String message) {
+    JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+  }
+
+  // Additional methods and class closing braces
 }

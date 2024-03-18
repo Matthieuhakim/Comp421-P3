@@ -1,36 +1,35 @@
+import javax.swing.*;
 import java.sql.*;
 import java.util.*;
 
-public class add_LessonPackage {
+public class add_LessonPackage extends simpleJDBC{
 
     private static int sqlCode = 0;      // Variable to hold SQLCODE
     private static String sqlState = "00000";  // Variable to hold SQLSTATE
 
-    private static String lessonPackageTable = "LessonPackage";
+    private static final String lessonPackageTable = "LessonPackage";
 
-    private static String instructorTable = "Instructor";
+    private static final String instructorTable = "Instructor";
 
 
-    public static void addNewLessonPackage(Connection con) {
-        Scanner scanner = new Scanner(System.in);
+    public static boolean addNewLessonPackage(Connection con, String email, double hourlyFee) {
 
-        System.out.print("Enter your instructor email: ");
-        String email = scanner.nextLine();
-
+        boolean bool = false;
         // Check if email belongs to an instructor
         if (!isInstructor(con, email)) {
-            System.out.println("This email does not belong to a registered instructor.");
-            return;
+            JOptionPane.showMessageDialog(null, "This email does not belong to a registered instructor.", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
 
-        System.out.print("Enter hourly fee for the new lesson package: ");
-        double hourlyFee = scanner.nextDouble();
+
 
         // Generate new lesson_id
         int lessonId = generateNewLessonId(con) + 1;
 
         // Insert new lesson package
-        insertLessonPackage(con, lessonId, hourlyFee, email);
+        bool= insertLessonPackage(con, lessonId, hourlyFee, email);
+
+        return bool;
     }
 
     private static boolean isInstructor(Connection con, String email) {
@@ -44,12 +43,14 @@ public class add_LessonPackage {
                 return count > 0;
             }
         } catch (SQLException e) {
-
             sqlCode = e.getErrorCode(); // Get SQLCODE
             sqlState = e.getSQLState(); // Get SQLSTATE
 
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            // Prepare the message to display
+            String errorMessage = "SQL Error Code: " + sqlCode + "\nSQL State: " + sqlState + "\n" + e.getMessage();
+
+            // Show the error message in a pop-up dialog
+            JOptionPane.showMessageDialog(null, errorMessage, "Database Error", JOptionPane.ERROR_MESSAGE);
         }
         return false;
     }
@@ -68,13 +69,16 @@ public class add_LessonPackage {
             sqlCode = e.getErrorCode(); // Get SQLCODE
             sqlState = e.getSQLState(); // Get SQLSTATE
 
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            // Prepare the message to display
+            String errorMessage = "SQL Error Code: " + sqlCode + "\nSQL State: " + sqlState + "\n" + e.getMessage();
+
+            // Show the error message in a pop-up dialog
+            JOptionPane.showMessageDialog(null, errorMessage, "Database Error", JOptionPane.ERROR_MESSAGE);
         }
         return 1;
     }
 
-    private static void insertLessonPackage(Connection con, int lessonId, double hourlyFee, String instructorEmail) {
+    private static boolean insertLessonPackage(Connection con, int lessonId, double hourlyFee, String instructorEmail) {
         String insertSQL = "INSERT INTO " + lessonPackageTable + " (lesson_id, hourly_fee, instructor_email) VALUES (?, ?, ?)";
 
         try (PreparedStatement preparedStatement = con.prepareStatement(insertSQL)) {
@@ -86,18 +90,28 @@ public class add_LessonPackage {
             int newRow = preparedStatement.executeUpdate();
 
             if (newRow != 0) {
-                System.out.println("New lesson package added successfully. Lesson ID: " + lessonId);
+                // Display a success message in a pop-up dialog
+                JOptionPane.showMessageDialog(null, "New lesson package added successfully. Lesson ID: " + lessonId, "Success", JOptionPane.INFORMATION_MESSAGE);
+                return true;
             } else {
-                System.out.println("Failed to add the new lesson package.");
+                // Display a failure message in a pop-up dialog
+                JOptionPane.showMessageDialog(null, "Failed to add the new lesson package.", "Error", JOptionPane.ERROR_MESSAGE);
+                return false;
             }
 
-        } catch (SQLException e) {
+        }catch (SQLException e) {
             sqlCode = e.getErrorCode(); // Get SQLCODE
             sqlState = e.getSQLState(); // Get SQLSTATE
 
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            // Prepare the message to display
+            String errorMessage = "SQL Error Code: " + sqlCode + "\nSQL State: " + sqlState + "\n" + e.getMessage();
+
+            // Show the error message in a pop-up dialog
+            JOptionPane.showMessageDialog(null, errorMessage, "Database Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
+
+
     }
 
 
