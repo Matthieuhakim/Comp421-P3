@@ -1,95 +1,112 @@
+import javax.swing.*;
+import java.awt.*;
 import java.sql.*;
-import java.util.*;
+import java.util.Vector;
 
-public class lookup_instructors {
+public class lookup_instructors extends JFrame {
+    private final Connection con;
+    private JComboBox<String> stationComboBox;
+    private JTextArea instructorsTextArea;
+    private JButton lookupButton;
+    private static final String assignedTable = "Assigned";
+    private static final String skiStationTable = "SkiStation";
 
-    private static int sqlCode = 0;      // Variable to hold SQLCODE
-    private static String sqlState = "00000";  // Variable to hold SQLSTATE
-    private static String assignedTable = "Assigned";
-    private static String skiStationTable = "SkiStation";
+    public lookup_instructors(Connection con) {
+        this.con = con;
+        initializeUI();
+        checkTableData(); // Initial diagnostics on the database (to check if its empty and such)
+    }
 
+    private void initializeUI() {
+        setTitle("Lookup Instructors by Ski Station");
+        setSize(400, 300);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-    private static void get_instructors(Connection con, String stationName) throws SQLException {
+        Container pane = getContentPane();
+        pane.setLayout(new BorderLayout());
 
-        Statement statement = con.createStatement();
-        try {
-            String querySQL = "SELECT instructor_email from " + assignedTable + " WHERE location_name = '" + stationName + "'";
-            java.sql.ResultSet rs = statement.executeQuery(querySQL);
-            System.out.println("Instructors: \n");
+        stationComboBox = new JComboBox<>(fetchSkiStations());
+        pane.add(stationComboBox, BorderLayout.NORTH);
+
+        instructorsTextArea = new JTextArea(10, 30);
+        instructorsTextArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(instructorsTextArea);
+        pane.add(scrollPane, BorderLayout.CENTER);
+
+        lookupButton = new JButton("Lookup Instructors");
+        pane.add(lookupButton, BorderLayout.SOUTH);
+
+        lookupButton.addActionListener(e -> lookupInstructorsBySkiStation());
+        setVisible(true);
+    }
+
+    private Vector<String> fetchSkiStations() {
+        Vector<String> skiStations = new Vector<>();
+        try (Statement statement = con.createStatement()) {
+            String querySQL = "SELECT location_name FROM " + skiStationTable;
+            ResultSet rs = statement.executeQuery(querySQL);
+
+            while (rs.next()) {
+                skiStations.add(rs.getString("location_name"));
+            }
+        } catch (SQLException e) {
+            showErrorDialog("Error fetching ski stations: " + e.getMessage());
+        }
+        return skiStations;
+    }
+
+    private void lookupInstructorsBySkiStation() {
+        String stationName = (String) stationComboBox.getSelectedItem();
+        getInstructors(stationName);
+    }
+
+    private void getInstructors(String stationName) {
+        StringBuilder instructorsBuilder = new StringBuilder("Instructors:\n");
+        try (Statement statement = con.createStatement()) {
+            String querySQL = "SELECT instructor_email FROM " + assignedTable + " WHERE location_name = '" + stationName + "'";
+            ResultSet rs = statement.executeQuery(querySQL);
 
             int instructorIndex = 1;
             while (rs.next()) {
                 String instructor_email = rs.getString(1);
-                System.out.println(instructorIndex + ". " + instructor_email);
-                instructorIndex++;
+                instructorsBuilder.append(instructorIndex++).append(". ").append(instructor_email).append("\n");
             }
 
             if (instructorIndex == 1) {
-                System.out.println("No instructors available at this station.");
+                instructorsBuilder.append("No instructors available at this station.\n");
             }
-            System.out.println();
-            rs.close();
 
-
+            instructorsTextArea.setText(instructorsBuilder.toString());
         } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            showErrorDialog("Error looking up instructors: " + e.getMessage());
         }
-
-        statement.close();
     }
 
-    public static void lookupInstructorsBySkiStation(Connection con) throws SQLException {
-        Scanner scanner = new Scanner(System.in);
+    // Method to perform initial diagnostics
+    private void checkTableData() {
+        checkTableEntries(skiStationTable);
+        checkTableEntries(assignedTable);
+    }
 
-        System.out.println("Fetching available ski stations...");
-
-        Statement statement = con.createStatement();
-        try {
-            String querySQL = "SELECT location_name from " + skiStationTable;
-            java.sql.ResultSet stationResultSet = statement.executeQuery(querySQL);
-            System.out.println("Select a Ski Station:");
-
-            int stationIndex = 1;
-            List<String> choices = new ArrayList<>();
-            while (stationResultSet.next()) {
-                String skiStation = stationResultSet.getString("location_name");
-                choices.add(skiStation);
-                System.out.println(stationIndex + ". " + skiStation);
-                stationIndex++;
+    // Method to check if tables have entries
+    private void checkTableEntries(String tableName) {
+        try (Statement statement = con.createStatement()) {
+            String querySQL = "SELECT COUNT(*) AS total FROM " + tableName;
+            ResultSet rs = statement.executeQuery(querySQL);
+            if (rs.next()) {
+                int total = rs.getInt("total");
+                System.out.println(tableName + " has " + total + " entries");
+                if (total == 0) {
+                    JOptionPane.showMessageDialog(this, tableName + " is empty.", "Data Check", JOptionPane.WARNING_MESSAGE);
+                }
             }
-            //  Final option to go back to main menu
-            System.out.println(stationIndex + ". Go back to main menu");
-
-
-            System.out.print("Enter your choice: ");
-            int stationChoice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-
-            if (stationChoice >= 1 && stationChoice < stationIndex) {
-                String selectedSkiStation = choices.get(stationChoice - 1);
-                get_instructors(con, selectedSkiStation);
-            }
-            else if (stationChoice != stationIndex){
-                System.out.println("Invalid station choice. \n");
-            }
-            stationResultSet.close();
-            statement.close();
-
-
         } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            showErrorDialog("Error checking data for " + tableName + ": " + e.getMessage());
         }
+    }
+
+    private void showErrorDialog(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 }

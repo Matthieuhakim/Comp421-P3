@@ -1,83 +1,97 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
-import java.util.*;
 
-public class AddEquipmentToLessonPackage {
+public class AddEquipmentToLessonPackage extends JDialog {
+    private final JComboBox<String> lessonPackageComboBox;
+    private final JComboBox<String> equipmentComboBox;
+    private final JButton addButton;
+    private final Connection con;
 
-    private static int sqlCode = 0;      // Variable to hold SQLCODE
-    private static String sqlState = "00000";  // Variable to hold SQLSTATE
-    private static String includesTable = "Includes";
+    public static void promptAddEquipmentToLessonPackage(Connection con) {
+        // Call this method to show the dialog
+        AddEquipmentToLessonPackage dialog = new AddEquipmentToLessonPackage(null, con);
+        dialog.setVisible(true);
+    }
 
+    private AddEquipmentToLessonPackage(Frame parent, Connection con) {
+        super(parent, "Add Equipment to Lesson Package", true);
+        this.con = con;
+        setSize(400, 300);
+        setLayout(new BorderLayout());
 
-    private static void addEquipment(Connection con, int lessonId, int equipmentId) throws SQLException {
+        JPanel panel = new JPanel(new GridLayout(0, 1));
+        add(panel, BorderLayout.CENTER);
 
-        PreparedStatement preparedStatement = null;
+        lessonPackageComboBox = new JComboBox<>();
+        equipmentComboBox = new JComboBox<>();
+        addButton = new JButton("Add Equipment");
+
+        panel.add(new JLabel("Select Lesson Package:"));
+        panel.add(lessonPackageComboBox);
+        panel.add(new JLabel("Select Equipment:"));
+        panel.add(equipmentComboBox);
+        panel.add(addButton);
+
+        loadLessonPackages();
+        loadEquipment();
+
+        addButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                addEquipment();
+            }
+        });
+    }
+
+    private void loadLessonPackages() {
         try {
-            String insertSQL = "INSERT INTO " + includesTable + " (lesson_id, equipment_id) VALUES (?, ?)";
-            preparedStatement = con.prepareStatement(insertSQL);
+            String query = "SELECT lesson_id, 'Lesson ID: ' || lesson_id || ', With Instructor: ' || instructor_email AS lesson_info FROM LessonPackage";
+            Statement statement = con.createStatement();
+            ResultSet rs = statement.executeQuery(query);
+            while (rs.next()) {
+                lessonPackageComboBox.addItem(rs.getString("lesson_info"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
+    private void loadEquipment() {
+        try {
+            String query = "SELECT equipment_id, 'ID: ' || equipment_id || ', Name: ' || name || ', Type: ' || type || ', Hourly Price: ' || hourly_price AS equipment_info FROM Equipment";
+            Statement statement = con.createStatement();
+            ResultSet rs = statement.executeQuery(query);
+            while (rs.next()) {
+                equipmentComboBox.addItem(rs.getString("equipment_info"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addEquipment() {
+        try {
+            // Extract the IDs from the selected items
+            String lessonInfo = (String) lessonPackageComboBox.getSelectedItem();
+            String equipmentInfo = (String) equipmentComboBox.getSelectedItem();
+            int lessonId = Integer.parseInt(lessonInfo.split(",")[0].split(": ")[1]);
+            int equipmentId = Integer.parseInt(equipmentInfo.split(",")[0].split(": ")[1]);
+
+            String insertSQL = "INSERT INTO Includes (lesson_id, equipment_id) VALUES (?, ?)";
+            PreparedStatement preparedStatement = con.prepareStatement(insertSQL);
             preparedStatement.setInt(1, lessonId);
             preparedStatement.setInt(2, equipmentId);
 
             int rowsAffected = preparedStatement.executeUpdate();
             if (rowsAffected > 0) {
-                System.out.println("Equipment successfully added to lesson package.");
+                JOptionPane.showMessageDialog(this, "Equipment successfully added to lesson package.", "Success", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                System.out.println("Failed to add equipment to lesson package.");
+                JOptionPane.showMessageDialog(this, "Failed to add equipment to lesson package.", "Error", JOptionPane.ERROR_MESSAGE);
             }
-
         } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
-        } finally {
-            if (preparedStatement != null) {
-                preparedStatement.close();
-            }
+            JOptionPane.showMessageDialog(this, "SQL Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
-    public static void promptAddEquipmentToLessonPackage(Connection con) throws SQLException {
-        Scanner scanner = new Scanner(System.in);
-
-        // Prompt to see available lesson packages
-        System.out.print("Would you like to see the available lesson packages? (y/n) ");
-        String response = scanner.next().trim().toLowerCase();
-
-        if (response.equals("y")) {
-            System.out.println("Fetching available lesson packages...");
-            String lessonQuery = "SELECT lesson_id, 'ID: ' || lesson_id || ', With Instructor: ' || instructor_email AS lesson_info FROM LessonPackage";
-            try (Statement lessonStmt = con.createStatement();
-                 ResultSet lessonRs = lessonStmt.executeQuery(lessonQuery)) {
-                while (lessonRs.next()) {
-                    System.out.println(lessonRs.getString("lesson_info"));
-                }
-            }
-        }
-
-        System.out.print("Enter the lesson package ID: ");
-        int lessonId = scanner.nextInt();
-
-        // Prompt to see available equipment
-        System.out.print("Would you like to see the available equipment? (y/n) ");
-        response = scanner.next().trim().toLowerCase();
-
-        if (response.equals("y")) {
-            System.out.println("Fetching available equipment...");
-            String equipmentQuery = "SELECT equipment_id, 'ID: ' || equipment_id || ', Name: ' || name || ', Type: ' || type || ', Hourly Price: ' || hourly_price AS equipment_info FROM Equipment";
-
-            try (Statement equipmentStmt = con.createStatement();
-                 ResultSet equipmentRs = equipmentStmt.executeQuery(equipmentQuery)) {
-                while (equipmentRs.next()) {
-                    System.out.println(equipmentRs.getString("equipment_info"));
-                }
-            }
-        }
-
-        System.out.print("Enter the equipment ID you want to add to package " + lessonId + ": ");
-        int equipmentId = scanner.nextInt();
-
-        addEquipment(con, lessonId, equipmentId);
     }
 }
 

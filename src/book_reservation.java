@@ -1,259 +1,390 @@
+import javax.swing.*;
+import java.awt.*;
 import java.sql.*;
 import java.util.*;
 
-public class book_reservation {
+public class book_reservation extends JFrame {
 
-    private static int sqlCode = 0;      // Variable to hold SQLCODE
-    private static String sqlState = "00000";  // Variable to hold SQLSTATE
 
-    private static String skierTable = "Skier";
-    private static String skiStationTable = "SkiStation";
-    private static String slopeTable = "SkiSlope";
-    private static String timeslotTable = "TimeSlot";
-    private static String openingsTable = "Opening";
-    private static String reservationTable = "Reservation";
+    private static final String skierTable = "Skier";
+    private static final String skiStationTable = "SkiStation";
+    private static final String slopeTable = "SkiSlope";
+    private static final String timeslotTable = "TimeSlot";
+    private static final String openingsTable = "Opening";
+    private static final String reservationTable = "Reservation";
 
-    public static void execute(Connection con) throws SQLException {
+    private final Connection con;
+    private JPanel mainPanel;
+    private JComboBox<String> stationComboBox, slopeComboBox, timeSlotComboBox;
+    private JButton showStationsButton;
 
-        //Ask for skier email
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter your email: ");
-        String skier_email = scanner.nextLine();
+    private String skierEmail;
 
-        //Check if skier exists
-        if (!checkSkierExists(con, skier_email)) {
-            return;
-        }
+    private final CardLayout cardLayout;
 
-        //Show Ski Stations
-        String station_name = showStations(con);
-        if (station_name == null) {
-            return;
-        }
+    private final JPanel cardsPanel;
 
-        Integer slope_no = showSlopes(con, station_name);
-        if (slope_no == null) {
-            return;
-        }
 
-        Integer timeslot_id = showTimeSlots(con, station_name, slope_no);
-        if (timeslot_id == null) {
-            return;
-        }
+    public book_reservation(Connection con) {
+        this.con = con;
+        setTitle("Book Reservation");
+        setSize(400, 300);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null); // Center on screen
 
-        //Insert reservation
-        insertReservation(con, skier_email, station_name, slope_no, timeslot_id);
+        cardLayout = new CardLayout();
+        cardsPanel = new JPanel(cardLayout);
 
+        add(cardsPanel);
+        cardsPanel.add(createEmailPanel(), "Email");
+        cardsPanel.add(createStationPanel(), "Stations");
+        cardsPanel.add(createSlopePanel(), "Slopes");
+        cardsPanel.add(createTimeSlotPanel(), "TimeSlots");
+        cardsPanel.add(createConfirmationPanel(), "Confirmation");
+
+        cardLayout.show(cardsPanel, "Email");
     }
 
-    private static boolean checkSkierExists(Connection con, String skier_email) throws SQLException{
-        Statement statement = con.createStatement();
-        try {
-            String querySQL = "SELECT * from " + skierTable + " WHERE email = '" + skier_email + "'";
-            java.sql.ResultSet rs = statement.executeQuery(querySQL);
-            if (!rs.next()) {
-                System.out.println("Skier with email " + skier_email + " does not exist.");
-                return false;
+    private JPanel createEmailPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        JTextField emailField = new JTextField();
+        JButton submitButton = new JButton("Submit");
+        JButton cancelButton = new JButton("Cancel");
+
+
+        submitButton.addActionListener(e -> {
+             skierEmail = emailField.getText().trim();
+            if (!skierEmail.isEmpty()) {
+                checkSkierExistsAndProceed(skierEmail);
+            } else {
+                JOptionPane.showMessageDialog(book_reservation.this, "Please enter a valid email.", "Invalid Email", JOptionPane.ERROR_MESSAGE);
             }
-            rs.close();
-        } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
+        });
 
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
-        }
-        statement.close();
-        return true;
+        cancelButton.addActionListener(e -> {
+            // Just close the popup, don't exit the entire application
+            this.dispose();
+        });
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2));
+        buttonPanel.add(submitButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(new JLabel("Enter your email:"), BorderLayout.NORTH);
+        panel.add(emailField, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
     }
 
-    private static String showStations(Connection con) throws SQLException {
-        Scanner scanner = new Scanner(System.in);
+    private void checkSkierExistsAndProceed(String skierEmail) {
+        try {
+            String querySQL = "SELECT COUNT(*) AS count FROM " + skierTable + " WHERE email = ?";
+            try (PreparedStatement preparedStatement = con.prepareStatement(querySQL)) {
+                preparedStatement.setString(1, skierEmail);
+                ResultSet rs = preparedStatement.executeQuery();
+                if (rs.next() && rs.getInt("count") > 0) {
+                    // If skier exists, proceed to the next panel
+                    SwingUtilities.invokeLater(() -> cardLayout.show(cardsPanel, "Stations"));
+                } else {
+                    // If skier does not exist, show error message and stay on the current panel
+                    JOptionPane.showMessageDialog(this, "Skier with email " + skierEmail + " does not exist.", "Skier Not Found", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error checking skier existence: Code: " + e.getErrorCode() + " sqlState: " + e.getSQLState(), "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
-        Statement statement = con.createStatement();
+
+    private JPanel createStationPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        stationComboBox = new JComboBox<>();
+        JButton nextButton = new JButton("Next");
+        JButton backButton = new JButton("Back");
+        JButton cancelButton = new JButton("Cancel");
+
+
+        // Populate stations
+        showStations(con); // Assuming 'con' is accessible here. Otherwise, pass it as a parameter.
+
+        nextButton.addActionListener(e -> {
+            String selectedStation = (String) stationComboBox.getSelectedItem();
+            if (selectedStation != null) {
+                // Save selected station or pass it to the next panel method
+                // Proceed to the slopes panel
+                cardLayout.show(cardsPanel, "Slopes");
+            }
+        });
+
+        backButton.addActionListener(e -> {
+            // Go back to the previous panel or close the dialog
+            cardLayout.show(cardsPanel, "Email");
+        });
+
+        cancelButton.addActionListener(e -> {
+            // Just close the popup, don't exit the entire application
+            this.dispose();
+        });
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
+        buttonPanel.add(backButton);
+        buttonPanel.add(nextButton);
+        buttonPanel.add(cancelButton);
+
+        panel.add(new JLabel("Select a station:"), BorderLayout.NORTH);
+        panel.add(stationComboBox, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private void showStations(Connection con) {
         try {
             String querySQL = "SELECT location_name from " + skiStationTable;
-            java.sql.ResultSet stationResultSet = statement.executeQuery(querySQL);
-            System.out.println("Select a Ski Station:");
+            Statement statement = con.createStatement();
+            ResultSet stationResultSet = statement.executeQuery(querySQL);
 
-            int stationIndex = 1;
-            List<String> choices = new ArrayList<>();
+            stationComboBox.removeAllItems(); // Clear existing items for fresh loading
             while (stationResultSet.next()) {
-                String location_name = stationResultSet.getString(1);
-                System.out.println(stationIndex + ". " + location_name);
-                choices.add(location_name);
-                stationIndex++;
+                String locationName = stationResultSet.getString("location_name");
+                stationComboBox.addItem(locationName); // Populate comboBox with station names
             }
-
-            if (stationIndex == 1) {
-                System.out.println("No ski stations available.");
-                return null;
-            }
-
-            System.out.print("Please Enter Your Option: ");
-            int option = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-
-            if (option < 1 || option >= stationIndex) {
-                System.out.println("Invalid option. Please choose again.\n");
-                return null;
-            }
-
-            return choices.get(option - 1);
-
+            stationResultSet.close();
+            statement.close();
         } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-        statement.close();
-        return null;
     }
 
-    private static Integer showSlopes(Connection con, String stationName) throws SQLException{
-        Scanner scanner = new Scanner(System.in);
-        Statement statement = con.createStatement();
+    private JPanel createSlopePanel() {
+        JPanel slopePanel = new JPanel(new BorderLayout());
+        slopeComboBox = new JComboBox<>();
+        JButton nextButton = new JButton("Next");
+        JButton backButton = new JButton("Back");
+        JButton cancelButton = new JButton("Cancel");
 
+
+        // Assuming stationName is stored or accessible
+        String stationName = (String) stationComboBox.getSelectedItem();
+        if (stationName != null) {
+            showSlopes(con, stationName); // Load slopes for the selected station
+        }
+
+        nextButton.addActionListener(e -> {
+            String selectedSlope = (String) slopeComboBox.getSelectedItem();
+            if (selectedSlope != null) {
+                // Extract slope information from the selected item or pass the slope to the next panel
+                // Proceed to the time slots panel
+                cardLayout.show(cardsPanel, "TimeSlots");
+            }
+        });
+
+        backButton.addActionListener(e -> {
+            // Go back to the station selection panel
+            cardLayout.show(cardsPanel, "Stations");
+        });
+
+        cancelButton.addActionListener(e -> {
+            // Just close the popup, don't exit the entire application
+            this.dispose();
+        });
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
+        buttonPanel.add(backButton);
+        buttonPanel.add(nextButton);
+        buttonPanel.add(cancelButton);
+
+        slopePanel.add(new JLabel("Select a slope:"), BorderLayout.NORTH);
+        slopePanel.add(slopeComboBox, BorderLayout.CENTER);
+        slopePanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return slopePanel;
+    }
+
+    private JPanel createTimeSlotPanel() {
+        JPanel timeSlotPanel = new JPanel(new BorderLayout());
+        timeSlotComboBox = new JComboBox<>();
+        JButton nextButton = new JButton("Next");
+        JButton backButton = new JButton("Back");
+        JButton cancelButton = new JButton("Cancel");
+
+
+        // Add action listeners
+        nextButton.addActionListener(e -> {
+            String selectedItem = (String) timeSlotComboBox.getSelectedItem();
+            if (selectedItem != null) {
+                // Extract time slot information from the selected item
+                // Possibly, show a confirmation panel or process the reservation
+                cardLayout.show(cardsPanel, "Confirmation"); // Transition to confirmation or next step
+            }
+        });
+
+        backButton.addActionListener(e -> {
+            // Go back to the slope selection panel
+            cardLayout.show(cardsPanel, "Slopes");
+        });
+
+        cancelButton.addActionListener(e -> {
+            // Just close the popup, don't exit the entire application
+            this.dispose();
+        });
+
+        // Assuming stationName and slopeNo are stored or accessible when this panel is prepared to be shown
+        String stationName = (String) stationComboBox.getSelectedItem(); // Get selected station name
+        Integer slopeNo = slopeComboBox.getSelectedIndex() + 1;
+
+        if (stationName != null && slopeNo != null) {
+            showTimeSlots(con, stationName, slopeNo); // Populate timeSlotComboBox with time slots
+        }
+
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
+        buttonPanel.add(backButton);
+        buttonPanel.add(nextButton);
+        buttonPanel.add(cancelButton);
+
+        timeSlotPanel.add(new JLabel("Select a time slot:"), BorderLayout.NORTH);
+        timeSlotPanel.add(timeSlotComboBox, BorderLayout.CENTER);
+        timeSlotPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return timeSlotPanel;
+    }
+
+
+    private JPanel createConfirmationPanel() {
+        JPanel confirmationPanel = new JPanel();
+        confirmationPanel.setLayout(new BoxLayout(confirmationPanel, BoxLayout.Y_AXIS)); // Use BoxLayout for vertical alignment
+
+        JLabel stationLabel = new JLabel("Station: " + stationComboBox.getSelectedItem());
+        JLabel slopeLabel = new JLabel("Slope: " + slopeComboBox.getSelectedItem());
+        JLabel timeSlotLabel = new JLabel("Time Slot: " + timeSlotComboBox.getSelectedItem());
+
+        JButton confirmButton = new JButton("Confirm Reservation");
+        JButton backButton = new JButton("Back");
+        JButton cancelButton = new JButton("Cancel");
+
+        confirmButton.addActionListener(e -> {
+            try {
+                int slopeNo = getSlopeNoFromSelectedItem((String) slopeComboBox.getSelectedItem());
+                int timeslotId = getTimeSlotIdFromSelectedItem((String) timeSlotComboBox.getSelectedItem());
+
+                insertReservation(con, skierEmail, (String) stationComboBox.getSelectedItem(), slopeNo, timeslotId);
+                //JOptionPane.showMessageDialog(this, "Reservation confirmed.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                this.dispose(); // Close the window after confirming
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Failed to confirm reservation. " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        backButton.addActionListener(e -> {
+            // Switch back to the previous panel
+            cardLayout.show(cardsPanel, "TimeSlots"); // Assuming the last panel before confirmation is the TimeSlots panel
+        });
+
+        cancelButton.addActionListener(e -> {
+            // Just close the popup, don't exit the entire application
+            this.dispose(); // This closes the current window but not the entire application
+        });
+
+        // Adding components to the panel
+        confirmationPanel.add(stationLabel);
+        confirmationPanel.add(slopeLabel);
+        confirmationPanel.add(timeSlotLabel);
+        confirmationPanel.add(confirmButton);
+        confirmationPanel.add(backButton);
+        confirmationPanel.add(cancelButton);
+
+        return confirmationPanel;
+    }
+
+
+    private int getSlopeNoFromSelectedItem(String selectedItem) {
         try {
-            String querySQL = "SELECT slope_no, difficulty, hourly_price from " + slopeTable + " WHERE location_name = '" + stationName + "'";
-            java.sql.ResultSet slopeResultSet = statement.executeQuery(querySQL);
-            System.out.println("Select a Slope:");
-
-            int slopeIndex = 1;
-            List<Integer> choices = new ArrayList<>();
-            while (slopeResultSet.next()) {
-                Integer slope_no = slopeResultSet.getInt(1);
-                Integer difficulty = slopeResultSet.getInt(2);
-                Float hourly_price = slopeResultSet.getFloat(3);
-                System.out.println(slopeIndex + ". " + slope_no + " - Difficulty: " + difficulty + " - Hourly Price: " + hourly_price);
-                choices.add(slope_no);
-                slopeIndex++;
-            }
-
-            if (slopeIndex == 1) {
-                System.out.println("No slopes available at this station.");
-                return null;
-            }
-
-            System.out.print("Please Enter Your Option: ");
-            int option = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-
-            if (option < 1 || option >= slopeIndex) {
-                System.out.println("Invalid option. Please choose again.\n");
-                return null;
-            }
-
-            return choices.get(option - 1);
-
-        } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            String slopeNoStr = selectedItem.substring(selectedItem.indexOf("Slope No: ") + "Slope No: ".length(),
+                    selectedItem.indexOf(", Difficulty"));
+            return Integer.parseInt(slopeNoStr.trim()); // Convert the string number into an integer
+        } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
+            JOptionPane.showMessageDialog(this, "Failed to parse slope number: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            return -1; // Return an invalid number to indicate a parsing error
         }
-        statement.close();
-        return null;
-
     }
 
-    private static Integer showTimeSlots(Connection con, String stationName, Integer slopeNo) throws SQLException{
 
-        Scanner scanner = new Scanner(System.in);
-        Statement statement = con.createStatement();
-
+    private int getTimeSlotIdFromSelectedItem(String selectedItem) {
         try {
-
-            String querySQL = "SELECT ts.timeslot_id, ts.date, ts.start_time, ts.end_time" +
-                    " FROM " + openingsTable + " op, " + timeslotTable + " ts" +
-                    " WHERE op.timeslot_id = ts.timeslot_id AND op.location_name = '" + stationName + "' AND op.slope_no = " + slopeNo;
-
-
-            java.sql.ResultSet timeSlotResultSet = statement.executeQuery(querySQL);
-            System.out.println("Select a Time Slot:");
-
-            int timeSlotIndex = 1;
-            List<Integer> choices = new ArrayList<>();
-            while (timeSlotResultSet.next()) {
-                Integer timeSlotId = timeSlotResultSet.getInt(1);
-                String date = timeSlotResultSet.getString(2);
-                String start_time = timeSlotResultSet.getString(3);
-                String end_time = timeSlotResultSet.getString(4);
-                System.out.println(timeSlotIndex + ". " + date + " - " + start_time + " to " + end_time);
-                choices.add(timeSlotId);
-                timeSlotIndex++;
-            }
-
-            if (timeSlotIndex == 1) {
-                System.out.println("No time slots available at this station.");
-                return null;
-            }
-
-            System.out.print("Please Enter Your Option: ");
-            int option = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
-
-            if (option < 1 || option >= timeSlotIndex) {
-                System.out.println("Invalid option. Please choose again.\n");
-                return null;
-            }
-
-            return choices.get(option - 1);
-
-        } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            String idStr = selectedItem.substring(selectedItem.indexOf("ID: ") + "ID: ".length(),
+                    selectedItem.indexOf(", Date"));
+            return Integer.parseInt(idStr.trim()); // Convert the string number into an integer
+        } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
+            JOptionPane.showMessageDialog(this, "Failed to parse timeslot ID: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            return -1; // Return an invalid number to indicate a parsing error
         }
-        statement.close();
-
-        return null;
     }
 
-    private static void insertReservation(Connection con, String skier_email, String location_name, Integer slope_no, Integer timeslot_id) throws SQLException{
 
-        System.out.println("Booking reservation...");
 
-        int reservation_id = generateUniqueReservationId(con);
 
-        //Insert reservation with only these attributes
+    private void showSlopes(Connection con, String stationName) {
+        slopeComboBox.removeAllItems(); // Clear previous items
+        try {
+            String query = "SELECT slope_no, difficulty, hourly_price FROM " + slopeTable + " WHERE location_name = ?";
+            PreparedStatement ps = con.prepareStatement(query);
+            ps.setString(1, stationName);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String item = "Slope No: " + rs.getInt("slope_no") + ", Difficulty: " + rs.getInt("difficulty") + ", Hourly Price: " + rs.getFloat("hourly_price");
+                slopeComboBox.addItem(item);
+            }
+            if (slopeComboBox.getItemCount() == 0) {
+                JOptionPane.showMessageDialog(this, "No slopes available at this station.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void showTimeSlots(Connection con, String stationName, Integer slopeNo) {
+        timeSlotComboBox.removeAllItems(); // Clear previous items
+        try {
+            String query = "SELECT ts.timeslot_id, ts.date, ts.start_time, ts.end_time FROM " + openingsTable + " op, " + timeslotTable + " ts WHERE op.timeslot_id = ts.timeslot_id AND op.location_name = ? AND op.slope_no = ?";
+            PreparedStatement ps = con.prepareStatement(query);
+            ps.setString(1, stationName);
+            ps.setInt(2, slopeNo);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String item = "ID: " + rs.getInt("timeslot_id") + ", Date: " + rs.getString("date") + ", Time: " + rs.getString("start_time") + " to " + rs.getString("end_time");
+                timeSlotComboBox.addItem(item);
+            }
+            if (timeSlotComboBox.getItemCount() == 0) {
+                JOptionPane.showMessageDialog(this, "No time slots available at this station.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void insertReservation(Connection con, String skierEmail, String locationName, Integer slopeNo, Integer timeslotId) throws SQLException {
+        int reservationId = generateUniqueReservationId(con);
+        if (reservationId == -1) return; // Error generating unique ID
+
+
         String insertSQL = "INSERT INTO " + reservationTable + " (reservation_id, skier_email, location_name, slope_no, timeslot_id) VALUES (?, ?, ?, ?, ?)";
-        PreparedStatement preparedStatement = con.prepareStatement(insertSQL);
-        preparedStatement.setInt(1, reservation_id);
-        preparedStatement.setString(2, skier_email);
-        preparedStatement.setString(3, location_name);
-        preparedStatement.setInt(4, slope_no);
-        preparedStatement.setInt(5, timeslot_id);
+        try (PreparedStatement preparedStatement = con.prepareStatement(insertSQL)) {
+            preparedStatement.setInt(1, reservationId);
+            preparedStatement.setString(2, skierEmail);
+            preparedStatement.setString(3, locationName);
+            preparedStatement.setInt(4, slopeNo);
+            preparedStatement.setInt(5, timeslotId);
 
-        try {
-            preparedStatement.executeUpdate();
-            System.out.println("Reservation booked successfully!");
-            System.out.println("Reservation ID: " + reservation_id);
+            int result = preparedStatement.executeUpdate();
+            if (result > 0) {
+                JOptionPane.showMessageDialog(this, "Reservation booked successfully! Reservation ID: " + reservationId, "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to book the reservation.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         } catch (SQLException e) {
-            sqlCode = e.getErrorCode(); // Get SQLCODE
-            sqlState = e.getSQLState(); // Get SQLSTATE
-
-            // Your code to handle errors comes here;
-            // something more meaningful than a print would be good
-            System.out.println("Code: " + sqlCode + "  sqlState: " + sqlState);
-            System.out.println(e);
+            JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-        preparedStatement.close();
-
     }
 
 
