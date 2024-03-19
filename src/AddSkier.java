@@ -94,6 +94,8 @@ public class AddSkier extends JFrame {
         JOptionPane.showMessageDialog(this, "Skier profile created successfully!");
       } catch (NumberFormatException e) {
         JOptionPane.showMessageDialog(this, "Invalid experience level.", "Error", JOptionPane.ERROR_MESSAGE);
+      } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Invalid or missing field", "Error", JOptionPane.ERROR_MESSAGE);
       }
     } else {
       JOptionPane.showMessageDialog(this, "User with email " + skierEmail + " already exists. Please use a different email.", "Error", JOptionPane.ERROR_MESSAGE);
