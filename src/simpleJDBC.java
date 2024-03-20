@@ -72,7 +72,7 @@ public class simpleJDBC extends JFrame {
         bookReservationJB = new JButton("Book a Reservation");
         addNewLessonPackJB = new JButton("Add a New Lesson Package");
         addEuiptoLessonPackJB = new JButton("Add Equipment to a Lesson Package");
-        quitJB = new JButton("Exit");
+        quitJB = new JButton("Quit");
 
         // Add action listeners to buttons
         lookupInstrcutorsJB.addActionListener(e -> {
