@@ -71,7 +71,7 @@ public class simpleJDBC extends JFrame {
         registerSkiersJB = new JButton("Register a new Skier");
         bookReservationJB = new JButton("Book a Reservation");
         addNewLessonPackJB = new JButton("Add a New Lesson Package");
-        addEuiptoLessonPackJB = new JButton("Add Equipment to a Lesson Pack");
+        addEuiptoLessonPackJB = new JButton("Add Equipment to a Lesson Package");
         quitJB = new JButton("Exit");
 
         // Add action listeners to buttons
